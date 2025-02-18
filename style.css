@@ -29,12 +29,39 @@ body {
     margin-bottom: 20px;
 }
 
-#webcam {
+.screen-container {
+    position: relative;
+    width: 100%;
+    background-color: #2a2a2a;
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 20px;
+}
+
+#webcam, #screen-video, #combined-canvas, #canvas-video {
     width: 100%;
     display: block;
     background-color: #000;
     aspect-ratio: 16/9;
     object-fit: cover;
+}
+
+#screen-video {
+    display: none;
+}
+
+#combined-canvas {
+    display: none;
+}
+
+#canvas-video {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    display: block;
 }
 
 .status-indicator {
@@ -94,6 +121,35 @@ body {
 
 .hidden {
     display: none;
+}
+
+.screen-container.hidden {
+    display: none;
+}
+
+.canvas-controls {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    display: flex;
+    gap: 10px;
+    z-index: 10;
+}
+
+#layoutSelect {
+    background-color: rgba(0, 122, 255, 0.8);
+    padding: 8px 16px;
+    font-size: 14px;
+}
+
+#swapPositions {
+    background-color: rgba(0, 122, 255, 0.8);
+    padding: 8px 16px;
+    font-size: 14px;
+}
+
+.canvas-controls .btn:hover {
+    background-color: rgba(0, 86, 179, 0.9);
 }
 
 /* Responsive design */
