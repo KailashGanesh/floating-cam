@@ -10,6 +10,7 @@
     <div class="container">
         <div class="video-container">
             <video id="webcam" autoplay playsinline></video>
+            <video id="canvas-video" autoplay playsinline muted></video>
             <div class="status-indicator">
                 <span id="camera-status">Camera: Off</span>
                 <span id="pip-status">PiP: Off</span>
@@ -20,7 +21,6 @@
         <div class="screen-container hidden">
             <canvas id="combined-canvas"></canvas>
             <video id="screen-video" autoplay playsinline hidden></video>
-            <video id="canvas-video" autoplay playsinline muted></video>
             <div class="canvas-controls">
                 <select id="layoutSelect" class="btn">
                     <option value="pip">Picture in Picture</option>
@@ -35,6 +35,7 @@
             <button id="startCamera" class="btn">Start Camera</button>
             <button id="togglePiP" class="btn" disabled>Enter PiP</button>
             <button id="startScreen" class="btn">Share Screen</button>
+            <button id="flipCamera" class="btn">Flip Camera</button>
         </div>
         <div id="error-message" class="error hidden"></div>
     </div>

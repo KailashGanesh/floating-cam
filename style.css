@@ -27,6 +27,7 @@ body {
     border-radius: 12px;
     overflow: hidden;
     margin-bottom: 20px;
+    aspect-ratio: 16/9;
 }
 
 .screen-container {
@@ -40,10 +41,13 @@ body {
 
 #webcam, #screen-video, #combined-canvas, #canvas-video {
     width: 100%;
-    display: block;
+    height: 100%;
     background-color: #000;
-    aspect-ratio: 16/9;
     object-fit: cover;
+}
+
+#webcam {
+    display: none;
 }
 
 #screen-video {

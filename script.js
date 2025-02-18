@@ -16,6 +16,7 @@ const screenContainer = document.querySelector('.screen-container');
 const toggleRecordingBtn = document.getElementById('toggleRecording');
 const recordingStatus = document.getElementById('recording-status');
 const canvasVideo = document.getElementById('canvas-video');
+const flipCameraBtn = document.getElementById('flipCamera');
 
 // State
 let stream = null;
@@ -30,12 +31,14 @@ let canvasStream = null;
 
 // Set canvas size
 function setCanvasSize() {
-    const width = screenContainer.clientWidth;
+    const container = document.querySelector('.video-container');
+    const width = container.clientWidth;
     const height = width * (9/16); // 16:9 aspect ratio
     canvas.width = width;
     canvas.height = height;
     canvas.style.display = 'block';
     canvasVideo.style.display = 'block';
+    screenContainer.style.display = screenStream ? 'block' : 'none';
 }
 
 // Helper function to calculate dimensions maintaining aspect ratio
@@ -61,119 +64,142 @@ function drawVideoFrame() {
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    const mainVideo = isSwapped ? video : screenVideo;
-    const overlayVideo = isSwapped ? screenVideo : video;
-    const mainStream = isSwapped ? stream : screenStream;
-    const overlayStream = isSwapped ? screenStream : stream;
+    // If we only have webcam stream
+    if (stream && !screenStream) {
+        if (video.readyState === 4) {
+            const dims = calculateAspectRatioFit(
+                video.videoWidth,
+                video.videoHeight,
+                canvas.width,
+                canvas.height
+            );
+            const x = (canvas.width - dims.width) / 2;
+            const y = (canvas.height - dims.height) / 2;
 
-    switch (currentLayout) {
-        case 'pip':
-            // Draw main video
-            if (mainStream && mainVideo.readyState === 4) {
-                const mainDims = calculateAspectRatioFit(
-                    mainVideo.videoWidth,
-                    mainVideo.videoHeight,
-                    canvas.width,
-                    canvas.height
-                );
+            if (isFlipped) {
+                ctx.save();
+                ctx.scale(-1, 1);
+                ctx.drawImage(video, -x - dims.width, y, dims.width, dims.height);
+                ctx.restore();
+            } else {
+                ctx.drawImage(video, x, y, dims.width, dims.height);
+            }
+        }
+    } else {
+        const mainVideo = isSwapped ? video : screenVideo;
+        const overlayVideo = isSwapped ? screenVideo : video;
+        const mainStream = isSwapped ? stream : screenStream;
+        const overlayStream = isSwapped ? screenStream : stream;
+
+        switch (currentLayout) {
+            case 'pip':
+                // Draw main video
+                if (mainStream && mainVideo.readyState === 4) {
+                    const mainDims = calculateAspectRatioFit(
+                        mainVideo.videoWidth,
+                        mainVideo.videoHeight,
+                        canvas.width,
+                        canvas.height
+                    );
+                    
+                    // Center the video
+                    const x = (canvas.width - mainDims.width) / 2;
+                    const y = (canvas.height - mainDims.height) / 2;
+                    ctx.drawImage(mainVideo, x, y, mainDims.width, mainDims.height);
+                }
+
+                // Draw overlay video
+                if (overlayStream && overlayVideo.readyState === 4) {
+                    const pipWidth = canvas.width * 0.25;
+                    const pipHeight = (overlayVideo.videoHeight / overlayVideo.videoWidth) * pipWidth;
+                    const pipX = canvas.width - pipWidth - 20;
+                    const pipY = canvas.height - pipHeight - 20;
+
+                    if (isFlipped && !isSwapped) {
+                        ctx.save();
+                        ctx.scale(-1, 1);
+                        ctx.drawImage(overlayVideo, -pipX - pipWidth, pipY, pipWidth, pipHeight);
+                        ctx.restore();
+                    } else {
+                        ctx.drawImage(overlayVideo, pipX, pipY, pipWidth, pipHeight);
+                    }
+                }
+                break;
+
+            case 'sideBySide':
+                const halfWidth = canvas.width / 2 - 5;
                 
-                // Center the video
-                const x = (canvas.width - mainDims.width) / 2;
-                const y = (canvas.height - mainDims.height) / 2;
-                ctx.drawImage(mainVideo, x, y, mainDims.width, mainDims.height);
-            }
-
-            // Draw overlay video
-            if (overlayStream && overlayVideo.readyState === 4) {
-                const pipWidth = canvas.width * 0.25;
-                const pipHeight = (overlayVideo.videoHeight / overlayVideo.videoWidth) * pipWidth;
-                const pipX = canvas.width - pipWidth - 20;
-                const pipY = canvas.height - pipHeight - 20;
-
-                if (isFlipped && !isSwapped) {
-                    ctx.save();
-                    ctx.scale(-1, 1);
-                    ctx.drawImage(overlayVideo, -pipX - pipWidth, pipY, pipWidth, pipHeight);
-                    ctx.restore();
-                } else {
-                    ctx.drawImage(overlayVideo, pipX, pipY, pipWidth, pipHeight);
+                // Draw left video
+                if (mainStream && mainVideo.readyState === 4) {
+                    const leftDims = calculateAspectRatioFit(
+                        mainVideo.videoWidth,
+                        mainVideo.videoHeight,
+                        halfWidth,
+                        canvas.height
+                    );
+                    const leftY = (canvas.height - leftDims.height) / 2;
+                    ctx.drawImage(mainVideo, 0, leftY, leftDims.width, leftDims.height);
                 }
-            }
-            break;
 
-        case 'sideBySide':
-            const halfWidth = canvas.width / 2 - 5;
-            
-            // Draw left video
-            if (mainStream && mainVideo.readyState === 4) {
-                const leftDims = calculateAspectRatioFit(
-                    mainVideo.videoWidth,
-                    mainVideo.videoHeight,
-                    halfWidth,
-                    canvas.height
-                );
-                const leftY = (canvas.height - leftDims.height) / 2;
-                ctx.drawImage(mainVideo, 0, leftY, leftDims.width, leftDims.height);
-            }
+                // Draw right video
+                if (overlayStream && overlayVideo.readyState === 4) {
+                    const rightDims = calculateAspectRatioFit(
+                        overlayVideo.videoWidth,
+                        overlayVideo.videoHeight,
+                        halfWidth,
+                        canvas.height
+                    );
+                    const rightX = canvas.width / 2 + 5;
+                    const rightY = (canvas.height - rightDims.height) / 2;
 
-            // Draw right video
-            if (overlayStream && overlayVideo.readyState === 4) {
-                const rightDims = calculateAspectRatioFit(
-                    overlayVideo.videoWidth,
-                    overlayVideo.videoHeight,
-                    halfWidth,
-                    canvas.height
-                );
-                const rightX = canvas.width / 2 + 5;
-                const rightY = (canvas.height - rightDims.height) / 2;
-
-                if (isFlipped && !isSwapped) {
-                    ctx.save();
-                    ctx.scale(-1, 1);
-                    ctx.drawImage(overlayVideo, -canvas.width + 5, rightY, rightDims.width, rightDims.height);
-                    ctx.restore();
-                } else {
-                    ctx.drawImage(overlayVideo, rightX, rightY, rightDims.width, rightDims.height);
+                    if (isFlipped && !isSwapped) {
+                        ctx.save();
+                        ctx.scale(-1, 1);
+                        ctx.drawImage(overlayVideo, -canvas.width + 5, rightY, rightDims.width, rightDims.height);
+                        ctx.restore();
+                    } else {
+                        ctx.drawImage(overlayVideo, rightX, rightY, rightDims.width, rightDims.height);
+                    }
                 }
-            }
-            break;
+                break;
 
-        case 'stackedVertical':
-            const halfHeight = canvas.height / 2 - 5;
-            
-            // Draw top video
-            if (mainStream && mainVideo.readyState === 4) {
-                const topDims = calculateAspectRatioFit(
-                    mainVideo.videoWidth,
-                    mainVideo.videoHeight,
-                    canvas.width,
-                    halfHeight
-                );
-                const topX = (canvas.width - topDims.width) / 2;
-                ctx.drawImage(mainVideo, topX, 0, topDims.width, topDims.height);
-            }
-
-            // Draw bottom video
-            if (overlayStream && overlayVideo.readyState === 4) {
-                const bottomDims = calculateAspectRatioFit(
-                    overlayVideo.videoWidth,
-                    overlayVideo.videoHeight,
-                    canvas.width,
-                    halfHeight
-                );
-                const bottomX = (canvas.width - bottomDims.width) / 2;
-                const bottomY = canvas.height / 2 + 5;
-
-                if (isFlipped && !isSwapped) {
-                    ctx.save();
-                    ctx.scale(-1, 1);
-                    ctx.drawImage(overlayVideo, -canvas.width + bottomX, bottomY, bottomDims.width, bottomDims.height);
-                    ctx.restore();
-                } else {
-                    ctx.drawImage(overlayVideo, bottomX, bottomY, bottomDims.width, bottomDims.height);
+            case 'stackedVertical':
+                const halfHeight = canvas.height / 2 - 5;
+                
+                // Draw top video
+                if (mainStream && mainVideo.readyState === 4) {
+                    const topDims = calculateAspectRatioFit(
+                        mainVideo.videoWidth,
+                        mainVideo.videoHeight,
+                        canvas.width,
+                        halfHeight
+                    );
+                    const topX = (canvas.width - topDims.width) / 2;
+                    ctx.drawImage(mainVideo, topX, 0, topDims.width, topDims.height);
                 }
-            }
-            break;
+
+                // Draw bottom video
+                if (overlayStream && overlayVideo.readyState === 4) {
+                    const bottomDims = calculateAspectRatioFit(
+                        overlayVideo.videoWidth,
+                        overlayVideo.videoHeight,
+                        canvas.width,
+                        halfHeight
+                    );
+                    const bottomX = (canvas.width - bottomDims.width) / 2;
+                    const bottomY = canvas.height / 2 + 5;
+
+                    if (isFlipped && !isSwapped) {
+                        ctx.save();
+                        ctx.scale(-1, 1);
+                        ctx.drawImage(overlayVideo, -canvas.width + bottomX, bottomY, bottomDims.width, bottomDims.height);
+                        ctx.restore();
+                    } else {
+                        ctx.drawImage(overlayVideo, bottomX, bottomY, bottomDims.width, bottomDims.height);
+                    }
+                }
+                break;
+        }
     }
 
     // Ensure canvas stream is set up
@@ -238,11 +264,11 @@ async function startCamera() {
         togglePiPBtn.disabled = false;
         cameraStatus.textContent = 'Camera: On';
 
-        if (screenStream) {
-            setCanvasSize();
-            drawVideoFrame();
-            setupCanvasStream(); // Ensure canvas stream is set up
-        }
+        // Set canvas size and start drawing immediately
+        setCanvasSize();
+        screenContainer.classList.remove('hidden');
+        drawVideoFrame();
+        setupCanvasStream();
     } catch (err) {
         showError('Failed to access camera: ' + err.message);
         console.error('Error accessing camera:', err);
@@ -258,6 +284,7 @@ function stopCamera() {
         stream.getTracks().forEach(track => track.stop());
         video.srcObject = null;
         stream = null;
+        screenContainer.classList.add('hidden');
 
         if (!screenStream) {
             cancelAnimationFrame(animationFrameId);
@@ -341,12 +368,10 @@ if (!isPiPSupported()) {
     }
 }
 
-// Modified togglePiP function to use canvas
+// Modified togglePiP function
 async function togglePiP() {
     try {
-        const isInPiPMode = document.pictureInPictureElement;
-
-        if (isInPiPMode) {
+        if (document.pictureInPictureElement) {
             await document.exitPictureInPicture();
             togglePiPBtn.textContent = 'Enter PiP';
             pipStatus.textContent = 'PiP: Off';
@@ -470,3 +495,11 @@ function setupCanvasStream() {
         });
     }
 }
+
+// Add flip camera event listener
+flipCameraBtn.addEventListener('click', () => {
+    isFlipped = !isFlipped;
+});
+
+// Add togglePiP event listener
+togglePiPBtn.addEventListener('click', togglePiP);
