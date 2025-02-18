@@ -91,9 +91,10 @@ body {
     gap: 10px;
     justify-content: center;
     flex-wrap: wrap;
+    margin-top: 20px;
 }
 
-.btn {
+.btn, #layoutSelect {
     background-color: #007AFF;
     color: white;
     border: none;
@@ -104,7 +105,7 @@ body {
     transition: all 0.3s ease;
 }
 
-.btn:hover {
+.btn:hover, #layoutSelect:hover {
     background-color: #0056b3;
 }
 
@@ -131,29 +132,21 @@ body {
     display: none;
 }
 
-.canvas-controls {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    display: flex;
-    gap: 10px;
-    z-index: 10;
-}
-
 #layoutSelect {
-    background-color: rgba(0, 122, 255, 0.8);
-    padding: 8px 16px;
-    font-size: 14px;
+    padding: 11px 24px;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 16px;
+    padding-right: 40px;
 }
 
-#swapPositions {
-    background-color: rgba(0, 122, 255, 0.8);
-    padding: 8px 16px;
-    font-size: 14px;
-}
-
-.canvas-controls .btn:hover {
-    background-color: rgba(0, 86, 179, 0.9);
+/* Remove the canvas-controls class since we don't need it anymore */
+.canvas-controls {
+    display: none;
 }
 
 /* Responsive design */

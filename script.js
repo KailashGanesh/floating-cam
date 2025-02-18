@@ -17,6 +17,8 @@ const toggleRecordingBtn = document.getElementById('toggleRecording');
 const recordingStatus = document.getElementById('recording-status');
 const canvasVideo = document.getElementById('canvas-video');
 const flipCameraBtn = document.getElementById('flipCamera');
+const toggleCanvasBtn = document.getElementById('toggleCanvas');
+const aspectRatioSelect = document.getElementById('aspectRatioSelect');
 
 // State
 let stream = null;
@@ -28,6 +30,8 @@ let isSwapped = false;
 let mediaRecorder = null;
 let recordedChunks = [];
 let canvasStream = null;
+let isCanvasVisible = false;
+let fitMode = 'cover'; // Default to fill mode
 
 // Set canvas size
 function setCanvasSize() {
@@ -50,6 +54,53 @@ function calculateAspectRatioFit(srcWidth, srcHeight, maxWidth, maxHeight) {
     };
 }
 
+// Helper function to draw video with fit mode
+function drawVideoWithFitMode(video, ctx, x, y, width, height, fitMode) {
+    if (video.readyState !== 4) return;
+
+    let drawWidth, drawHeight, drawX, drawY;
+    const videoRatio = video.videoWidth / video.videoHeight;
+    const targetRatio = width / height;
+
+    switch (fitMode) {
+        case 'contain': // Fit
+            if (videoRatio > targetRatio) {
+                drawWidth = width;
+                drawHeight = width / videoRatio;
+                drawX = x;
+                drawY = y + (height - drawHeight) / 2;
+            } else {
+                drawHeight = height;
+                drawWidth = height * videoRatio;
+                drawX = x + (width - drawWidth) / 2;
+                drawY = y;
+            }
+            break;
+        case 'stretch': // Stretch
+            drawWidth = width;
+            drawHeight = height;
+            drawX = x;
+            drawY = y;
+            break;
+        case 'cover': // Fill
+        default:
+            if (videoRatio > targetRatio) {
+                drawWidth = height * videoRatio;
+                drawHeight = height;
+                drawX = x + (width - drawWidth) / 2;
+                drawY = y;
+            } else {
+                drawHeight = width / videoRatio;
+                drawWidth = width;
+                drawX = x;
+                drawY = y + (height - drawHeight) / 2;
+            }
+            break;
+    }
+
+    return { drawX, drawY, drawWidth, drawHeight };
+}
+
 // Draw combined video frames
 function drawVideoFrame() {
     if (!screenStream && !stream) {
@@ -67,22 +118,25 @@ function drawVideoFrame() {
     // If we only have webcam stream
     if (stream && !screenStream) {
         if (video.readyState === 4) {
-            const dims = calculateAspectRatioFit(
-                video.videoWidth,
-                video.videoHeight,
+            const dims = drawVideoWithFitMode(
+                video,
+                ctx,
+                0,
+                0,
                 canvas.width,
-                canvas.height
+                canvas.height,
+                fitMode
             );
-            const x = (canvas.width - dims.width) / 2;
-            const y = (canvas.height - dims.height) / 2;
 
-            if (isFlipped) {
-                ctx.save();
-                ctx.scale(-1, 1);
-                ctx.drawImage(video, -x - dims.width, y, dims.width, dims.height);
-                ctx.restore();
-            } else {
-                ctx.drawImage(video, x, y, dims.width, dims.height);
+            if (dims) {
+                if (isFlipped) {
+                    ctx.save();
+                    ctx.scale(-1, 1);
+                    ctx.drawImage(video, -dims.drawX - dims.drawWidth, dims.drawY, dims.drawWidth, dims.drawHeight);
+                    ctx.restore();
+                } else {
+                    ctx.drawImage(video, dims.drawX, dims.drawY, dims.drawWidth, dims.drawHeight);
+                }
             }
         }
     } else {
@@ -218,14 +272,19 @@ async function startScreenShare() {
         });
         
         screenVideo.srcObject = screenStream;
-        screenContainer.classList.remove('hidden');
         startScreenBtn.textContent = 'Stop Sharing';
         screenStatus.textContent = 'Screen: On';
+        toggleCanvasBtn.disabled = false;
 
         // Set canvas size and start drawing
         setCanvasSize();
         drawVideoFrame();
         setupCanvasStream(); // Ensure canvas stream is set up
+
+        // Keep canvas hidden by default
+        isCanvasVisible = false;
+        screenContainer.style.display = 'none';
+        toggleCanvasBtn.textContent = 'Show Canvas';
 
         // Handle stream ending (user stops sharing)
         screenStream.getVideoTracks()[0].addEventListener('ended', () => {
@@ -245,6 +304,10 @@ function stopScreenShare() {
         screenContainer.classList.add('hidden');
         startScreenBtn.textContent = 'Share Screen';
         screenStatus.textContent = 'Screen: Off';
+        toggleCanvasBtn.disabled = true;
+        toggleCanvasBtn.textContent = 'Show Canvas';
+        isCanvasVisible = false;
+        screenContainer.style.display = 'none';
         
         if (!stream) {
             cancelAnimationFrame(animationFrameId);
@@ -503,3 +566,18 @@ flipCameraBtn.addEventListener('click', () => {
 
 // Add togglePiP event listener
 togglePiPBtn.addEventListener('click', togglePiP);
+
+// Add toggle canvas function
+function toggleCanvas() {
+    isCanvasVisible = !isCanvasVisible;
+    screenContainer.style.display = isCanvasVisible ? 'block' : 'none';
+    toggleCanvasBtn.textContent = isCanvasVisible ? 'Hide Canvas' : 'Show Canvas';
+}
+
+// Add toggle canvas event listener
+toggleCanvasBtn.addEventListener('click', toggleCanvas);
+
+// Add aspect ratio change listener
+aspectRatioSelect.addEventListener('change', (e) => {
+    fitMode = e.target.value;
+});
