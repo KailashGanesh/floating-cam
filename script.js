@@ -329,7 +329,8 @@ async function startCamera() {
 
         // Set canvas size and start drawing immediately
         setCanvasSize();
-        screenContainer.classList.remove('hidden');
+        // Only show canvas if it was previously visible
+        screenContainer.style.display = isCanvasVisible ? 'block' : 'none';
         drawVideoFrame();
         setupCanvasStream();
     } catch (err) {
