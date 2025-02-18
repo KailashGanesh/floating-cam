@@ -86,15 +86,36 @@ body {
     margin-left: 0;
 }
 
+.controls-container {
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
 .controls {
     display: flex;
     gap: 10px;
     justify-content: center;
     flex-wrap: wrap;
-    margin-top: 20px;
 }
 
-.btn, #layoutSelect {
+.control-group {
+    background-color: #2a2a2a;
+    padding: 20px;
+    border-radius: 12px;
+    width: 100%;
+}
+
+.control-group h3 {
+    margin: 0 0 15px 0;
+    font-size: 16px;
+    color: #999;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.btn, #layoutSelect, #aspectRatioSelect {
     background-color: #007AFF;
     color: white;
     border: none;
@@ -103,9 +124,10 @@ body {
     cursor: pointer;
     font-size: 16px;
     transition: all 0.3s ease;
+    margin: 5px;
 }
 
-.btn:hover, #layoutSelect:hover {
+.btn:hover, #layoutSelect:hover, #aspectRatioSelect:hover {
     background-color: #0056b3;
 }
 
@@ -132,7 +154,7 @@ body {
     display: none;
 }
 
-#layoutSelect {
+#layoutSelect, #aspectRatioSelect {
     padding: 11px 24px;
     appearance: none;
     -webkit-appearance: none;
@@ -155,9 +177,19 @@ body {
         padding: 10px;
     }
 
-    .btn {
+    .control-group {
+        padding: 15px;
+    }
+
+    .btn, #layoutSelect, #aspectRatioSelect {
         padding: 10px 20px;
         font-size: 14px;
+        margin: 3px;
+    }
+
+    .control-group h3 {
+        font-size: 14px;
+        margin-bottom: 10px;
     }
 
     .status-indicator {
