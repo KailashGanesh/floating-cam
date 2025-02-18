@@ -32,6 +32,11 @@ let recordedChunks = [];
 let canvasStream = null;
 let isCanvasVisible = false;
 let fitMode = 'cover'; // Default to fill mode
+let cropBox = null;
+let cropVideo = null;
+let cropOverlay = null;
+let isCropping = false;
+let cropRegion = null;
 
 // Set canvas size
 function setCanvasSize() {
@@ -159,7 +164,17 @@ function drawVideoFrame() {
                     // Center the video
                     const x = (canvas.width - mainDims.width) / 2;
                     const y = (canvas.height - mainDims.height) / 2;
-                    ctx.drawImage(mainVideo, x, y, mainDims.width, mainDims.height);
+
+                    if (mainVideo === screenVideo && cropRegion) {
+                        // Draw cropped screen
+                        ctx.drawImage(
+                            mainVideo,
+                            cropRegion.x, cropRegion.y, cropRegion.width, cropRegion.height,
+                            x, y, mainDims.width, mainDims.height
+                        );
+                    } else {
+                        ctx.drawImage(mainVideo, x, y, mainDims.width, mainDims.height);
+                    }
                 }
 
                 // Draw overlay video
@@ -169,7 +184,14 @@ function drawVideoFrame() {
                     const pipX = canvas.width - pipWidth - 20;
                     const pipY = canvas.height - pipHeight - 20;
 
-                    if (isFlipped && !isSwapped) {
+                    if (overlayVideo === screenVideo && cropRegion) {
+                        // Draw cropped screen in PiP
+                        ctx.drawImage(
+                            overlayVideo,
+                            cropRegion.x, cropRegion.y, cropRegion.width, cropRegion.height,
+                            pipX, pipY, pipWidth, pipHeight
+                        );
+                    } else if (isFlipped && !isSwapped) {
                         ctx.save();
                         ctx.scale(-1, 1);
                         ctx.drawImage(overlayVideo, -pipX - pipWidth, pipY, pipWidth, pipHeight);
@@ -192,7 +214,17 @@ function drawVideoFrame() {
                         canvas.height
                     );
                     const leftY = (canvas.height - leftDims.height) / 2;
-                    ctx.drawImage(mainVideo, 0, leftY, leftDims.width, leftDims.height);
+
+                    if (mainVideo === screenVideo && cropRegion) {
+                        // Draw cropped screen on left
+                        ctx.drawImage(
+                            mainVideo,
+                            cropRegion.x, cropRegion.y, cropRegion.width, cropRegion.height,
+                            0, leftY, leftDims.width, leftDims.height
+                        );
+                    } else {
+                        ctx.drawImage(mainVideo, 0, leftY, leftDims.width, leftDims.height);
+                    }
                 }
 
                 // Draw right video
@@ -206,7 +238,14 @@ function drawVideoFrame() {
                     const rightX = canvas.width / 2 + 5;
                     const rightY = (canvas.height - rightDims.height) / 2;
 
-                    if (isFlipped && !isSwapped) {
+                    if (overlayVideo === screenVideo && cropRegion) {
+                        // Draw cropped screen on right
+                        ctx.drawImage(
+                            overlayVideo,
+                            cropRegion.x, cropRegion.y, cropRegion.width, cropRegion.height,
+                            rightX, rightY, rightDims.width, rightDims.height
+                        );
+                    } else if (isFlipped && !isSwapped) {
                         ctx.save();
                         ctx.scale(-1, 1);
                         ctx.drawImage(overlayVideo, -canvas.width + 5, rightY, rightDims.width, rightDims.height);
@@ -229,7 +268,17 @@ function drawVideoFrame() {
                         halfHeight
                     );
                     const topX = (canvas.width - topDims.width) / 2;
-                    ctx.drawImage(mainVideo, topX, 0, topDims.width, topDims.height);
+
+                    if (mainVideo === screenVideo && cropRegion) {
+                        // Draw cropped screen on top
+                        ctx.drawImage(
+                            mainVideo,
+                            cropRegion.x, cropRegion.y, cropRegion.width, cropRegion.height,
+                            topX, 0, topDims.width, topDims.height
+                        );
+                    } else {
+                        ctx.drawImage(mainVideo, topX, 0, topDims.width, topDims.height);
+                    }
                 }
 
                 // Draw bottom video
@@ -243,7 +292,14 @@ function drawVideoFrame() {
                     const bottomX = (canvas.width - bottomDims.width) / 2;
                     const bottomY = canvas.height / 2 + 5;
 
-                    if (isFlipped && !isSwapped) {
+                    if (overlayVideo === screenVideo && cropRegion) {
+                        // Draw cropped screen on bottom
+                        ctx.drawImage(
+                            overlayVideo,
+                            cropRegion.x, cropRegion.y, cropRegion.width, cropRegion.height,
+                            bottomX, bottomY, bottomDims.width, bottomDims.height
+                        );
+                    } else if (isFlipped && !isSwapped) {
                         ctx.save();
                         ctx.scale(-1, 1);
                         ctx.drawImage(overlayVideo, -canvas.width + bottomX, bottomY, bottomDims.width, bottomDims.height);
@@ -275,6 +331,7 @@ async function startScreenShare() {
         startScreenBtn.textContent = 'Stop Sharing';
         screenStatus.textContent = 'Screen: On';
         toggleCanvasBtn.disabled = false;
+        document.getElementById('cropScreen').disabled = false;
 
         // Set canvas size and start drawing
         setCanvasSize();
@@ -308,6 +365,12 @@ function stopScreenShare() {
         toggleCanvasBtn.textContent = 'Show Canvas';
         isCanvasVisible = false;
         screenContainer.style.display = 'none';
+        
+        // Reset crop state
+        cropRegion = null;
+        const cropScreen = document.getElementById('cropScreen');
+        cropScreen.textContent = 'Crop Screen';
+        cropScreen.disabled = true;
         
         if (!stream) {
             cancelAnimationFrame(animationFrameId);
@@ -468,6 +531,7 @@ window.addEventListener('beforeunload', () => {
 
 // Start camera automatically when page loads
 document.addEventListener('DOMContentLoaded', () => {
+    initCropElements();
     startCamera();
 });
 
@@ -582,3 +646,243 @@ toggleCanvasBtn.addEventListener('click', toggleCanvas);
 aspectRatioSelect.addEventListener('change', (e) => {
     fitMode = e.target.value;
 });
+
+// Initialize crop-related elements
+function initCropElements() {
+    cropBox = document.querySelector('.crop-box');
+    cropVideo = document.getElementById('crop-video');
+    cropOverlay = document.querySelector('.crop-overlay');
+    const cropScreen = document.getElementById('cropScreen');
+    const confirmCrop = document.getElementById('confirmCrop');
+    const cancelCrop = document.getElementById('cancelCrop');
+
+    cropScreen.addEventListener('click', () => {
+        if (cropRegion) {
+            // If we have a crop region, this is an undo operation
+            cropRegion = null;
+            cropScreen.textContent = 'Crop Screen';
+            drawVideoFrame();
+        } else {
+            showCropOverlay();
+        }
+    });
+    
+    confirmCrop.addEventListener('click', applyCrop);
+    cancelCrop.addEventListener('click', hideCropOverlay);
+
+    // Initialize crop box dragging
+    let isDragging = false;
+    let startX, startY;
+    let boxLeft, boxTop;
+
+    cropBox.addEventListener('mousedown', (e) => {
+        if (e.target === cropBox) {
+            isDragging = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            boxLeft = cropBox.offsetLeft;
+            boxTop = cropBox.offsetTop;
+            e.preventDefault(); // Prevent text selection
+        }
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+
+        const deltaX = e.clientX - startX;
+        const deltaY = e.clientY - startY;
+
+        const newLeft = boxLeft + deltaX;
+        const newTop = boxTop + deltaY;
+
+        const container = cropBox.parentElement;
+        const videoRect = cropVideo.getBoundingClientRect();
+        
+        // Calculate bounds based on the actual video display area
+        const minLeft = videoRect.left - container.getBoundingClientRect().left;
+        const maxLeft = minLeft + videoRect.width - cropBox.offsetWidth;
+        const minTop = videoRect.top - container.getBoundingClientRect().top;
+        const maxTop = minTop + videoRect.height - cropBox.offsetHeight;
+
+        cropBox.style.left = Math.max(minLeft, Math.min(newLeft, maxLeft)) + 'px';
+        cropBox.style.top = Math.max(minTop, Math.min(newTop, maxTop)) + 'px';
+    });
+
+    document.addEventListener('mouseup', () => {
+        isDragging = false;
+    });
+
+    // Initialize resize handles
+    const handles = cropBox.querySelectorAll('.resize-handle');
+    handles.forEach(handle => {
+        handle.addEventListener('mousedown', initResize);
+    });
+}
+
+function initResize(e) {
+    e.stopPropagation();
+    const handle = e.target;
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startWidth = cropBox.offsetWidth;
+    const startHeight = cropBox.offsetHeight;
+    const startLeft = cropBox.offsetLeft;
+    const startTop = cropBox.offsetTop;
+
+    const container = cropBox.parentElement;
+    const maxWidth = container.clientWidth;
+    const maxHeight = container.clientHeight;
+
+    function handleResize(e) {
+        const deltaX = e.clientX - startX;
+        const deltaY = e.clientY - startY;
+
+        if (handle.classList.contains('bottom-right')) {
+            const newWidth = Math.min(startWidth + deltaX, maxWidth - startLeft);
+            const newHeight = Math.min(startHeight + deltaY, maxHeight - startTop);
+            cropBox.style.width = Math.max(50, newWidth) + 'px';
+            cropBox.style.height = Math.max(50, newHeight) + 'px';
+        } else if (handle.classList.contains('top-left')) {
+            const newWidth = startWidth - deltaX;
+            const newHeight = startHeight - deltaY;
+            const newLeft = startLeft + deltaX;
+            const newTop = startTop + deltaY;
+
+            if (newWidth >= 50 && newLeft >= 0) {
+                cropBox.style.width = newWidth + 'px';
+                cropBox.style.left = newLeft + 'px';
+            }
+            if (newHeight >= 50 && newTop >= 0) {
+                cropBox.style.height = newHeight + 'px';
+                cropBox.style.top = newTop + 'px';
+            }
+        }
+        // Add other handle cases as needed
+    }
+
+    function stopResize() {
+        document.removeEventListener('mousemove', handleResize);
+        document.removeEventListener('mouseup', stopResize);
+    }
+
+    document.addEventListener('mousemove', handleResize);
+    document.addEventListener('mouseup', stopResize);
+}
+
+function showCropOverlay() {
+    if (!screenVideo.srcObject) return;
+
+    cropOverlay.classList.remove('hidden');
+    cropVideo.srcObject = screenVideo.srcObject;
+    isCropping = true;
+
+    // Wait for video to load to get proper dimensions
+    cropVideo.onloadedmetadata = () => {
+        const container = cropBox.parentElement;
+        const containerRect = container.getBoundingClientRect();
+        
+        // Calculate video display size while maintaining aspect ratio
+        const videoRatio = cropVideo.videoWidth / cropVideo.videoHeight;
+        const containerRatio = containerRect.width / containerRect.height;
+        
+        let videoDisplayWidth, videoDisplayHeight, videoLeft = 0;
+        if (videoRatio > containerRatio) {
+            // Video is wider than container
+            videoDisplayWidth = containerRect.width;
+            videoDisplayHeight = videoDisplayWidth / videoRatio;
+        } else {
+            // Video is taller than container
+            videoDisplayHeight = containerRect.height;
+            videoDisplayWidth = videoDisplayHeight * videoRatio;
+        }
+
+        // Center the video horizontally if it's narrower than the container
+        if (videoDisplayWidth < containerRect.width) {
+            videoLeft = (containerRect.width - videoDisplayWidth) / 2;
+        }
+        
+        // Calculate initial crop box size (50% of the video display size)
+        const cropWidth = videoDisplayWidth * 0.5;
+        const cropHeight = cropWidth / videoRatio; // Maintain video aspect ratio
+        
+        // Calculate the video's position within the container
+        const videoTop = (containerRect.height - videoDisplayHeight) / 2;
+        
+        // Center the crop box within the visible video area
+        const cropLeft = videoLeft + (videoDisplayWidth - cropWidth) / 2;
+        const cropTop = videoTop + (videoDisplayHeight - cropHeight) / 2;
+        
+        // Apply the dimensions
+        cropBox.style.width = `${cropWidth}px`;
+        cropBox.style.height = `${cropHeight}px`;
+        cropBox.style.left = `${cropLeft}px`;
+        cropBox.style.top = `${cropTop}px`;
+    };
+}
+
+function hideCropOverlay() {
+    cropOverlay.classList.add('hidden');
+    cropVideo.srcObject = null;
+    isCropping = false;
+}
+
+function applyCrop() {
+    const videoRect = cropVideo.getBoundingClientRect();
+    const boxRect = cropBox.getBoundingClientRect();
+    const containerRect = cropBox.parentElement.getBoundingClientRect();
+
+    // Calculate the actual video display area within the container
+    const videoRatio = cropVideo.videoWidth / cropVideo.videoHeight;
+    const containerRatio = containerRect.width / containerRect.height;
+    
+    let videoDisplayWidth, videoDisplayHeight, videoLeft = 0;
+    if (videoRatio > containerRatio) {
+        videoDisplayWidth = containerRect.width;
+        videoDisplayHeight = videoDisplayWidth / videoRatio;
+    } else {
+        videoDisplayHeight = containerRect.height;
+        videoDisplayWidth = videoDisplayHeight * videoRatio;
+    }
+
+    // Calculate video position
+    if (videoDisplayWidth < containerRect.width) {
+        videoLeft = (containerRect.width - videoDisplayWidth) / 2;
+    }
+    const videoTop = (containerRect.height - videoDisplayHeight) / 2;
+
+    // Calculate the relative position of the crop box within the actual video area
+    const relativeLeft = (boxRect.left - containerRect.left - videoLeft) / videoDisplayWidth;
+    const relativeTop = (boxRect.top - containerRect.top - videoTop) / videoDisplayHeight;
+    const relativeWidth = boxRect.width / videoDisplayWidth;
+    const relativeHeight = boxRect.height / videoDisplayHeight;
+
+    // Calculate the actual crop coordinates in video space
+    cropRegion = {
+        x: Math.max(0, Math.min(relativeLeft * cropVideo.videoWidth, cropVideo.videoWidth)),
+        y: Math.max(0, Math.min(relativeTop * cropVideo.videoHeight, cropVideo.videoHeight)),
+        width: Math.min(relativeWidth * cropVideo.videoWidth, cropVideo.videoWidth),
+        height: Math.min(relativeHeight * cropVideo.videoHeight, cropVideo.videoHeight)
+    };
+
+    // Change the crop button to "Undo Crop"
+    document.getElementById('cropScreen').textContent = 'Undo Crop';
+    
+    // Hide the crop overlay
+    hideCropOverlay();
+}
+
+// Modify the drawScreen function to handle cropping
+function drawScreen() {
+    if (!screenStream || !screenVideo.srcObject) return;
+
+    const ctx = combinedCanvas.getContext('2d');
+    if (cropRegion) {
+        ctx.drawImage(
+            screenVideo,
+            cropRegion.x, cropRegion.y, cropRegion.width, cropRegion.height,
+            0, 0, combinedCanvas.width, combinedCanvas.height
+        );
+    } else {
+        ctx.drawImage(screenVideo, 0, 0, combinedCanvas.width, combinedCanvas.height);
+    }
+}

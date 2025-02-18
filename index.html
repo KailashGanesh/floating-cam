@@ -22,6 +22,23 @@
             <canvas id="combined-canvas"></canvas>
             <video id="screen-video" autoplay playsinline hidden></video>
         </div>
+        <div class="crop-overlay hidden">
+            <div class="crop-container">
+                <video id="crop-video" autoplay playsinline></video>
+                <div class="crop-area">
+                    <div class="crop-box">
+                        <div class="resize-handle top-left"></div>
+                        <div class="resize-handle top-right"></div>
+                        <div class="resize-handle bottom-left"></div>
+                        <div class="resize-handle bottom-right"></div>
+                    </div>
+                </div>
+                <div class="crop-controls">
+                    <button id="confirmCrop" class="btn">Confirm Crop</button>
+                    <button id="cancelCrop" class="btn">Cancel</button>
+                </div>
+            </div>
+        </div>
         <div class="controls-container">
             <div class="controls camera-controls">
                 <div class="control-group">
@@ -40,6 +57,7 @@
                 <div class="control-group">
                     <h3>Screen Sharing & Layout</h3>
                     <button id="startScreen" class="btn">Share Screen</button>
+                    <button id="cropScreen" class="btn" disabled>Crop Screen</button>
                     <button id="toggleCanvas" class="btn" disabled>Show Canvas</button>
                     <select id="layoutSelect" class="btn">
                         <option value="pip">Picture in Picture</option>
